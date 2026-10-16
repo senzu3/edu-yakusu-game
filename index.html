@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>約数ゲーム</title>
+<style>
+:root{
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  --bg:#F2F5FA; --grid:#DCE3F0; --ink:#1B2547; --ink2:#4A5578; --panel:#FFFFFF; --line:#C5CEE2;
+  --me:#0072B2; --me-soft:#D8EBF7; --on-me:#FFFFFF;
+  --ai:#C24E00; --ai-soft:#FBE4D3; --on-ai:#FFFFFF;
+  --tile:#FFFFFF; --off-bg:#E6E9F1; --off-ink:#9099B3;
+  --btn:#1B2547; --on-btn:#FFFFFF; --warn:#8A5A00; --warn-bg:#FFF1CC;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E1326; --grid:#1A2240; --ink:#EDF0FA; --ink2:#A9B3D2; --panel:#161D36; --line:#2D3860;
+    --me:#56B4E9; --me-soft:#16384D; --on-me:#071A2B;
+    --ai:#F2994A; --ai-soft:#4A2D14; --on-ai:#2A1400;
+    --tile:#1D2646; --off-bg:#141B33; --off-ink:#566088;
+    --btn:#EDF0FA; --on-btn:#0E1326; --warn:#FFD98A; --warn-bg:#3A2D0B;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E1326; --grid:#1A2240; --ink:#EDF0FA; --ink2:#A9B3D2; --panel:#161D36; --line:#2D3860;
+  --me:#56B4E9; --me-soft:#16384D; --on-me:#071A2B;
+  --ai:#F2994A; --ai-soft:#4A2D14; --on-ai:#2A1400;
+  --tile:#1D2646; --off-bg:#141B33; --off-ink:#566088;
+  --btn:#EDF0FA; --on-btn:#0E1326; --warn:#FFD98A; --warn-bg:#3A2D0B;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px);-webkit-text-size-adjust:100%}
+*,*::before,*::after{box-sizing:border-box}
+body{
+  margin:0;min-height:100%;background:var(--bg);color:var(--ink);
+  font-family:"Hiragino Maru Gothic ProN","BIZ UDPGothic","Hiragino Sans","Yu Gothic UI","Noto Sans JP",system-ui,sans-serif;
+  font-size:17px;line-height:1.55;font-variant-numeric:tabular-nums;-webkit-tap-highlight-color:transparent;
+}
+[hidden]{display:none !important}
+button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
+:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+.wrap{max-width:1180px;margin:0 auto;padding:18px 20px 28px}
+
+/* ---- ボタン ---- */
+.btn{min-height:48px;padding:10px 22px;border-radius:12px;border:2px solid var(--btn);background:var(--btn);color:var(--on-btn);font-weight:700;font-size:1.05rem}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+.btn.small{min-height:40px;padding:6px 14px;font-size:.95rem}
+.btn:disabled{opacity:.55;cursor:default}
+
+/* ---- スタート画面 ---- */
+.start{max-width:640px;margin:0 auto;padding-top:clamp(8px,4vh,40px)}
+.start h1{font-size:clamp(2rem,5vw,2.8rem);margin:0 0 6px;letter-spacing:.02em}
+.lead{color:var(--ink2);margin:0 0 26px}
+.group{margin:0 0 22px;padding:0;border:0}
+.group>legend,.group-title{font-weight:700;margin:0 0 8px;padding:0}
+.seg{display:flex;gap:10px;flex-wrap:wrap}
+.seg button{flex:1 1 140px;min-height:56px;padding:8px 14px;border-radius:12px;border:2px solid var(--line);background:var(--panel);text-align:center;font-weight:700}
+.seg button small{display:block;font-weight:400;color:var(--ink2);font-size:.82rem}
+.seg button[aria-pressed="true"]{border-color:var(--me);box-shadow:inset 0 0 0 2px var(--me);background:var(--me-soft)}
+.switch-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.switch{position:relative;width:64px;height:36px;border-radius:18px;border:2px solid var(--line);background:var(--off-bg);padding:0;flex:none}
+.switch::after{content:"";position:absolute;top:3px;left:3px;width:26px;height:26px;border-radius:50%;background:var(--ink2);transition:transform .18s}
+.switch[aria-checked="true"]{background:var(--me);border-color:var(--me)}
+.switch[aria-checked="true"]::after{transform:translateX(28px);background:var(--on-me)}
+.note{color:var(--ink2);font-size:.9rem;margin:6px 0 0}
+.start .btn{width:100%;margin-top:8px;min-height:56px;font-size:1.15rem}
+
+/* ---- ルール ---- */
+.rules{margin:0 0 24px;background:var(--panel);border:2px solid var(--line);border-radius:14px;padding:4px 18px 8px}
+.rules summary{cursor:pointer;font-weight:700;padding:10px 0;min-height:44px}
+.rules h3,.dialog h3{font-size:1.02rem;margin:12px 0 4px}
+.rules ol,.rules ul,.dialog ol,.dialog ul{margin:0 0 6px;padding-left:1.4em}
+.rules li,.dialog li{margin:4px 0}
+.example{background:var(--bg);border-radius:10px;padding:10px 14px;margin:10px 0}
+.example p{margin:2px 0}
+.ex-title{font-weight:700}
+.c-me{color:var(--me);font-weight:700}.c-ai{color:var(--ai);font-weight:700}
+.dialog{max-height:calc(100vh - 40px);overflow:auto}
+
+/* ---- ゲーム画面 ---- */
+.topbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.topbar .title{font-weight:700;font-size:1.1rem;margin-right:auto}
+.pill{display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:999px;background:var(--panel);border:2px solid var(--line);font-weight:700}
+.hint-toggle{display:inline-flex;align-items:center;gap:10px;font-weight:700}
+.play{display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:18px;align-items:start}
+.board-card{background:var(--panel);border:2px solid var(--line);border-radius:18px;padding:16px}
+.board{
+  display:grid;grid-template-columns:repeat(10,1fr);gap:7px;padding:10px;border-radius:12px;
+  background-color:var(--bg);
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:22px 22px;
+}
+.tile{
+  position:relative;aspect-ratio:1/1;min-width:0;border-radius:10px;border:2px solid var(--line);background:var(--tile);color:var(--ink);
+  font-weight:700;font-size:clamp(18px,3vw,30px);padding:0;display:flex;align-items:center;justify-content:center;
+  transition:background-color .2s,border-color .2s,color .2s,transform .12s;
+}
+.tile:active:not(:disabled){transform:scale(.96)}
+.tile .num{margin-top:.3em}
+.tile .who{position:absolute;top:3px;left:5px;font-size:.42em;font-weight:700;line-height:1;opacity:.9}
+.tile.off{background:var(--off-bg);color:var(--off-ink);border-style:dashed;cursor:default}
+.tile.me-chosen{background:var(--me);border-color:var(--me);color:var(--on-me)}
+.tile.me-received{background:var(--me-soft);border-color:var(--me);color:var(--ink)}
+.tile.ai-chosen{background:var(--ai);border-color:var(--ai);color:var(--on-ai)}
+.tile.ai-received{background:var(--ai-soft);border-color:var(--ai);color:var(--ink)}
+.tile.taken{cursor:default}
+.tile.selected{outline:4px solid var(--me);outline-offset:2px;transform:translateY(-2px)}
+.tile.hintd{border:3px dashed var(--ai);background:var(--ai-soft)}
+.tile.flash{animation:flash 1s ease-out 1}
+@keyframes flash{0%{box-shadow:0 0 0 0 var(--ai)}40%{box-shadow:0 0 0 8px transparent}100%{box-shadow:0 0 0 0 transparent}}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;margin:12px 2px 0;color:var(--ink2);font-size:.88rem}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:16px;height:16px;border-radius:4px;border:2px solid var(--line);display:inline-block}
+.sw.a{background:var(--me);border-color:var(--me)}.sw.b{background:var(--me-soft);border-color:var(--me)}
+.sw.c{background:var(--ai);border-color:var(--ai)}.sw.d{background:var(--ai-soft);border-color:var(--ai)}
+.sw.e{background:var(--off-bg);border:2px dashed var(--off-ink)}
+
+.side{display:flex;flex-direction:column;gap:12px}
+.scores{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.score{border-radius:14px;padding:10px 14px;border:2px solid;background:var(--panel)}
+.score.me{border-color:var(--me)}.score.ai{border-color:var(--ai)}
+.score .name{font-weight:700;font-size:.95rem}
+.score.me .name{color:var(--me)}.score.ai .name{color:var(--ai)}
+.score .num{font-size:2.3rem;font-weight:700;line-height:1.1}
+.status{min-height:3.2em;padding:10px 14px;border-radius:12px;background:var(--panel);border:2px solid var(--line);font-weight:700}
+.dots::after{content:"";display:inline-block;width:1.5em;text-align:left;animation:dots 1.2s steps(4,end) infinite}
+@keyframes dots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
+.pick{min-height:152px;padding:12px 14px;border-radius:12px;background:var(--panel);border:2px solid var(--line)}
+.pick .q{font-weight:700;font-size:1.1rem;margin:0 0 4px}
+.pick .divs{margin:0 0 8px;color:var(--ink2)}
+.pick .divs s{opacity:.55}
+.pick .row{display:flex;gap:10px;flex-wrap:wrap}
+.pick .idle{color:var(--ink2);margin:0}
+.pick .warn{margin:8px 0 0;padding:8px 10px;border-radius:8px;background:var(--warn-bg);color:var(--warn);font-weight:700;font-size:.92rem}
+.last{min-height:3.1em;color:var(--ink2);font-size:.95rem;margin:0 2px}
+.hist{max-height:240px;overflow:auto;background:var(--panel);border:2px solid var(--line);border-radius:12px;padding:8px 12px}
+.hist h3{margin:0 0 4px;font-size:.92rem;color:var(--ink2)}
+.hist ol{margin:0;padding-left:1.6em}
+.hist li{font-size:.92rem;margin:2px 0}
+.hist li.me b{color:var(--me)}.hist li.ai b{color:var(--ai)}
+.hist .empty{color:var(--ink2);font-size:.92rem;margin:0}
+
+/* ---- 重なり表示 ---- */
+.overlay{position:fixed;inset:0;background:rgba(10,15,35,.55);display:flex;align-items:center;justify-content:center;padding:20px;z-index:20}
+.dialog{background:var(--panel);color:var(--ink);border-radius:18px;padding:24px;max-width:520px;width:100%;border:2px solid var(--line)}
+.dialog h2{margin:0 0 8px;font-size:1.5rem}
+.dialog p{margin:6px 0}
+.dialog .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+.big-scores{display:flex;gap:14px;font-size:1.15rem;font-weight:700;margin:10px 0}
+.big-scores .me{color:var(--me)}.big-scores .ai{color:var(--ai)}
+
+/* ---- 結果画面 ---- */
+.result{max-width:760px;margin:0 auto}
+.outcome{font-size:clamp(2rem,6vw,3rem);font-weight:700;margin:6px 0 2px}
+.outcome.win{color:var(--me)}.outcome.lose{color:var(--ai)}
+.sum{font-size:1.15rem;margin:0 0 16px;color:var(--ink2)}
+table.t{width:100%;border-collapse:collapse;background:var(--panel);border:2px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:16px}
+.t th,.t td{padding:8px 12px;text-align:center;border-bottom:1px solid var(--line)}
+.t th{background:var(--bg);font-size:.9rem}
+.t td:first-child,.t th:first-child{text-align:left}
+.t .me{color:var(--me);font-weight:700}.t .ai{color:var(--ai);font-weight:700}
+.tabs{display:flex;gap:8px;margin:0 0 8px}
+.tabs button{min-height:44px;padding:6px 18px;border-radius:10px;border:2px solid var(--line);background:var(--panel);font-weight:700}
+.tabs button[aria-selected="true"]{border-color:var(--me);background:var(--me-soft)}
+.result .hist{max-height:320px;margin-bottom:18px}
+.result .actions{display:flex;gap:12px;flex-wrap:wrap}
+
+@media (max-width:899px),(orientation:portrait){
+  .play{grid-template-columns:1fr}
+  .board{grid-template-columns:repeat(10,1fr);gap:5px}
+}
+@media (max-width:560px){
+  .board{grid-template-columns:repeat(6,1fr)}
+  .wrap{padding:14px 12px 24px}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none !important;transition:none !important}
+}
+
+</style>
+</head>
+<body>
+<main class="wrap" id="app">
+  <!-- スタート -->
+  <section id="start" class="start" aria-labelledby="h-title">
+    <h1 id="h-title">約数ゲーム</h1>
+    <p class="lead">数を選んで、相手より多く点をとろう。先手と後手を入れかえて2戦し、合計点で勝ち負けを決めます。</p>
+
+    <details class="rules" open>
+      <summary>ルールと勝ち方</summary>
+      <div id="rulesBody">
+        <h3>あそび方</h3>
+        <ol>
+          <li><b>数を1つ選ぶ</b>と、その数が<span class="c-me">自分の点</span>になります。</li>
+          <li>選んだ数の<b>約数</b>(その数より小さい約数)のうち、まだ盤面に残っている数は、<span class="c-ai">相手の点</span>になります。選んだ数と、その約数は、盤面から消えます。</li>
+          <li><b>約数が盤面に1つも残っていない数は、選べません。</b>1は、いつでも選べません。</li>
+          <li>選べる数がなくなったら、その戦はおしまいです。<b>残った数は、だれの点にもなりません。</b></li>
+        </ol>
+        <h3>勝ち方</h3>
+        <ul>
+          <li>先手と後手を入れかえて、<b>2戦</b>します。</li>
+          <li><b>2戦の合計点が多いほうが勝ち</b>です。同じ点なら引き分けです。</li>
+        </ul>
+      </div>
+    </details>
+
+    <fieldset class="group">
+      <legend>数の範囲</legend>
+      <div class="seg" id="boardSeg" role="group" aria-label="数の範囲">
+        <button type="button" data-n="20" aria-pressed="true">入門<small>1〜20</small></button>
+        <button type="button" data-n="30" aria-pressed="false">標準<small>1〜30</small></button>
+      </div>
+    </fieldset>
+
+    <fieldset class="group">
+      <legend>相手の強さ</legend>
+      <div class="seg" id="levelSeg" role="group" aria-label="相手の強さ">
+        <button type="button" data-l="yowai" aria-pressed="false">よわい</button>
+        <button type="button" data-l="futsu" aria-pressed="true">ふつう</button>
+        <button type="button" data-l="tsuyoi" aria-pressed="false">つよい</button>
+        <button type="button" data-l="tatsujin" aria-pressed="false">たつじん<small>めったにミスしない</small></button>
+      </div>
+    </fieldset>
+
+    <div class="group">
+      <p class="group-title" id="hintLabel">約数ヒント</p>
+      <div class="switch-row">
+        <button type="button" class="switch" id="hintSwitchStart" role="switch" aria-labelledby="hintLabel" aria-checked="true"></button>
+        <span id="hintStateStart">あり</span>
+      </div>
+      <p class="note">ヒントありだと、選ぶ数の約数を表示し、選べない数をグレーにします。</p>
+    </div>
+
+    <button type="button" class="btn" id="startBtn">はじめる</button>
+  </section>
+
+  <!-- ゲーム -->
+  <section id="play" hidden aria-label="ゲーム">
+    <div class="topbar">
+      <span class="title">約数ゲーム</span>
+      <span class="pill" id="roundPill">1戦目 / 2戦</span>
+      <span class="pill" id="firstPill">あなたは先手</span>
+      <span class="hint-toggle">ヒント
+        <button type="button" class="switch" id="hintSwitchPlay" role="switch" aria-label="約数ヒント" aria-checked="true"></button>
+      </span>
+      <button type="button" class="btn ghost small" id="rulesBtn">ルール</button>
+      <button type="button" class="btn ghost small" id="quitBtn">やめる</button>
+    </div>
+    <div class="play">
+      <div class="board-card">
+        <div class="board" id="board" role="group" aria-label="数のタイル"></div>
+        <div class="legend" aria-hidden="true">
+          <span><i class="sw a"></i>あなたが選んだ数</span>
+          <span><i class="sw b"></i>あなたがもらった数</span>
+          <span><i class="sw c"></i>相手が選んだ数</span>
+          <span><i class="sw d"></i>相手がもらった数</span>
+          <span id="legendOff"><i class="sw e"></i>今は選べない数(約数が盤面に残っていない)</span>
+        </div>
+      </div>
+      <div class="side">
+        <div class="scores">
+          <div class="score me"><div class="name">あなた</div><div class="num" id="scoreMe">0</div></div>
+          <div class="score ai"><div class="name">相手</div><div class="num" id="scoreAi">0</div></div>
+        </div>
+        <div class="status" id="status" aria-live="polite"></div>
+        <div class="pick" id="pick"></div>
+        <p class="last" id="last"></p>
+        <div class="hist"><h3>これまでの手</h3><div id="hist"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 結果 -->
+  <section id="result" class="result" hidden aria-labelledby="outcome">
+    <div class="outcome" id="outcome"></div>
+    <p class="sum" id="sumLine"></p>
+    <table class="t" id="gamesTable"></table>
+    <div class="tabs" role="tablist" id="tabs">
+      <button type="button" role="tab" data-g="0" aria-selected="true">1戦目の手</button>
+      <button type="button" role="tab" data-g="1" aria-selected="false">2戦目の手</button>
+    </div>
+    <div class="hist"><div id="resultHist"></div></div>
+    <div class="actions">
+      <button type="button" class="btn" id="againBtn">同じ設定でもう一度</button>
+      <button type="button" class="btn ghost" id="changeBtn">数の範囲・強さを変える</button>
+    </div>
+  </section>
+</main>
+
+<div class="overlay" id="overlay" hidden>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dlgTitle" id="dialog"></div>
+</div>
+
+<script>
+/* ===== ゲームの中身(画面に依存しない部分) ===== */
+const LEVELS = {
+  yowai:  { label: 'よわい', eps: 0.6 },  // でたらめ率(後から変えやすいよう、ここだけで管理)
+  futsu:  { label: 'ふつう', eps: 0.3 },
+  tsuyoi: { label: 'つよい', eps: 0.1 },
+  tatsujin: { label: 'たつじん', eps: 0.03 }
+};
+const BOARDS = { 20: { label: '入門' }, 30: { label: '標準' } };
+
+const _tables = {};
+function tableFor(n) {
+  if (_tables[n]) return _tables[n];
+  const divs = [], mask = [];
+  for (let k = 0; k <= n; k++) {
+    const list = []; let m = 0;
+    for (let d = 1; d < k; d++) if (k % d === 0) { list.push(d); m |= (1 << d); }
+    divs.push(list); mask.push(m);
+  }
+  let full = 0;
+  for (let k = 1; k <= n; k++) full |= (1 << k);
+  return (_tables[n] = { n, divs, mask, full, memo: new Map() });
+}
+
+function legalMoves(T, board) {
+  const out = [];
+  for (let k = 1; k <= T.n; k++) if (((board >> k) & 1) && (T.mask[k] & board)) out.push(k);
+  return out;
+}
+
+/* nを選んだときの結果。given=相手(=選ばなかった側)に入る約数 */
+function resolveMove(T, board, k) {
+  const given = T.divs[k].filter(d => (board >> d) & 1);
+  const sum = given.reduce((a, b) => a + b, 0);
+  const next = board & ~(T.mask[k] & board) & ~(1 << k);
+  return { given, sum, next };
+}
+
+/* 手番の人から見た「以降の得点差(自分-相手)」の最大値。残った数は誰の得点にもならない */
+function value(T, board) {
+  const hit = T.memo.get(board);
+  if (hit !== undefined) return hit;
+  let best = 0, any = false;
+  for (let k = 1; k <= T.n; k++) {
+    if (((board >> k) & 1) && (T.mask[k] & board)) {
+      const r = resolveMove(T, board, k);
+      const v = k - r.sum - value(T, r.next);
+      if (!any || v > best) { best = v; any = true; }
+    }
+  }
+  T.memo.set(board, best);
+  return best;
+}
+
+function bestMoves(T, board) {
+  let best = null, list = [];
+  for (const k of legalMoves(T, board)) {
+    const r = resolveMove(T, board, k);
+    const q = k - r.sum - value(T, r.next);
+    if (best === null || q > best) { best = q; list = [k]; } else if (q === best) list.push(k);
+  }
+  return list;
+}
+
+/* AIの手:でたらめ率eps で合法手から無作為、それ以外は最善手から無作為 */
+function aiChoose(T, board, eps, rnd) {
+  const legal = legalMoves(T, board);
+  if (rnd() < eps) return legal[Math.floor(rnd() * legal.length)];
+  const b = bestMoves(T, board);
+  return b[Math.floor(rnd() * b.length)];
+}
+
+function newGame(T, first) {
+  return { T, first, board: T.full, turn: first, scores: { me: 0, ai: 0 }, moves: [], owner: {}, last: null, over: false, leftover: [] };
+}
+
+function applyMove(g, who, k) {
+  const r = resolveMove(g.T, g.board, k);
+  const other = who === 'me' ? 'ai' : 'me';
+  g.board = r.next;
+  g.scores[who] += k; g.scores[other] += r.sum;
+  g.owner[k] = { who, kind: 'chosen' };
+  r.given.forEach(d => { g.owner[d] = { who: other, kind: 'received' }; });
+  const mv = { who, n: k, given: r.given, sum: r.sum };
+  g.moves.push(mv); g.last = mv;
+  if (legalMoves(g.T, g.board).length === 0) {
+    g.over = true;
+    g.leftover = [];
+    for (let i = 1; i <= g.T.n; i++) if ((g.board >> i) & 1) g.leftover.push(i);
+  } else g.turn = other;
+  return mv;
+}
+
+
+/* ===== 画面 ===== */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const S = { n: 20, level: 'futsu', hint: { 20: true, 30: false }, T: null, firsts: [], games: [], gi: 0, g: null,
+            sel: null, locked: false, flash: null, msg: '', run: 0, timers: [], tab: 0 };
+
+function later(fn, ms) { const run = S.run; S.timers.push(setTimeout(() => { if (run === S.run) fn(); }, ms)); }
+function resetTimers() { S.run++; S.timers.forEach(clearTimeout); S.timers = []; }
+function showScreen(id) { ['start', 'play', 'result'].forEach(s => { $('#' + s).hidden = s !== id; }); window.scrollTo(0, 0); }
+const NAME = { me: 'あなた', ai: '相手' };
+const fmtGiven = a => a.length ? a.map(d => '+' + d).join(' ') : '+0';
+const hintOn = () => S.hint[S.n];
+
+/* ---- スタート ---- */
+function renderStart() {
+  $$('#boardSeg button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.n === S.n)));
+  $$('#levelSeg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.l === S.level)));
+  $('#hintSwitchStart').setAttribute('aria-checked', String(hintOn()));
+  $('#hintStateStart').textContent = hintOn() ? 'あり' : 'なし';
+}
+$('#boardSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { S.n = +b.dataset.n; renderStart(); } });
+$('#levelSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { S.level = b.dataset.l; renderStart(); } });
+$('#hintSwitchStart').addEventListener('click', () => { S.hint[S.n] = !S.hint[S.n]; renderStart(); });
+$('#hintSwitchPlay').addEventListener('click', () => { S.hint[S.n] = !S.hint[S.n]; S.msg = ''; renderPlay(); });
+
+function startMatch() {
+  resetTimers(); hideOverlay();
+  const btn = $('#startBtn'); btn.disabled = true; btn.textContent = 'じゅんびちゅう…';
+  setTimeout(() => {
+    const T = tableFor(S.n); value(T, T.full);          // 全手読みの下準備(1〜30でも一瞬)
+    btn.disabled = false; btn.textContent = 'はじめる';
+    const first = Math.random() < 0.5 ? 'me' : 'ai';
+    S.T = T; S.firsts = [first, first === 'me' ? 'ai' : 'me']; S.games = [null, null]; S.gi = 0;
+    startGame();
+  }, 30);
+}
+$('#startBtn').addEventListener('click', startMatch);
+
+/* ---- ゲーム ---- */
+function buildBoard() {
+  const b = $('#board'); b.innerHTML = '';
+  for (let k = 1; k <= S.n; k++) {
+    const t = document.createElement('button');
+    t.type = 'button'; t.className = 'tile'; t.dataset.n = k; t.innerHTML = '<span class="num">' + k + '</span>';
+    b.appendChild(t);
+  }
+}
+function startGame() {
+  S.g = newGame(S.T, S.firsts[S.gi]); S.games[S.gi] = S.g;
+  S.sel = null; S.locked = false; S.flash = null; S.msg = '';
+  buildBoard(); showScreen('play'); renderPlay();
+  if (S.g.turn === 'ai') scheduleAi();
+}
+function scheduleAi() {
+  S.locked = true; renderPlay();
+  later(() => {
+    const g = S.g, k = aiChoose(g.T, g.board, LEVELS[S.level].eps, Math.random);
+    applyMove(g, 'ai', k); S.sel = null; S.flash = k; S.msg = ''; renderPlay(); afterMove('ai');
+  }, 800);
+}
+function afterMove(who) {
+  const g = S.g;
+  if (g.over) { S.locked = true; later(endGame, who === 'ai' ? 1500 : 1000); return; }
+  if (who === 'ai') { S.locked = true; later(() => { S.locked = false; S.flash = null; renderPlay(); }, 1000); }
+  else scheduleAi();
+}
+function confirmPick() {
+  const g = S.g; if (S.locked || g.over || g.turn !== 'me' || S.sel == null) return;
+  const k = S.sel; S.sel = null; S.locked = true; S.flash = null; S.msg = '';
+  applyMove(g, 'me', k); renderPlay(); afterMove('me');
+}
+$('#board').addEventListener('click', e => {
+  const t = e.target.closest('.tile'); if (!t) return;
+  const g = S.g, k = +t.dataset.n;
+  if (!g || g.over || S.locked || g.turn !== 'me' || g.owner[k]) return;
+  const legal = legalMoves(g.T, g.board).includes(k);
+  if (!legal) {
+    if (!hintOn()) { S.msg = 'この数の約数は、もう盤面に残っていません。ほかの数を選んでください。'; S.sel = null; renderPlay(); later(() => { S.msg = ''; renderPlay(); }, 2200); }
+    return;
+  }
+  S.msg = ''; S.sel = S.sel === k ? null : k; renderPlay();
+});
+$('#pick').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.act === 'ok') confirmPick();
+  if (b.dataset.act === 'cancel') { S.sel = null; renderPlay(); }
+});
+
+function moveLine(mv) {
+  return '<b>' + NAME[mv.who] + '</b>: ' + mv.n + ' を選ぶ → ' + NAME[mv.who] + ' +' + mv.n + ' ／ ' + NAME[mv.who === 'me' ? 'ai' : 'me'] + ' ' + fmtGiven(mv.given);
+}
+function histHtml(g) {
+  if (!g.moves.length) return '<p class="empty">まだありません</p>';
+  return '<ol>' + g.moves.map(m => '<li class="' + m.who + '">' + moveLine(m) + '</li>').join('') + '</ol>';
+}
+
+function renderPlay() {
+  const g = S.g, T = g.T, legal = legalMoves(T, g.board);
+  $('#roundPill').textContent = (S.gi + 1) + '戦目 / 2戦';
+  $('#firstPill').textContent = 'あなたは' + (g.first === 'me' ? '先手' : '後手');
+  $('#hintSwitchPlay').setAttribute('aria-checked', String(hintOn()));
+  $('#legendOff').hidden = !hintOn();
+  $('#scoreMe').textContent = g.scores.me; $('#scoreAi').textContent = g.scores.ai;
+
+  // タイル
+  const hintSet = new Set();
+  if (S.sel != null && hintOn()) T.divs[S.sel].forEach(d => { if ((g.board >> d) & 1) hintSet.add(d); });
+  $$('#board .tile').forEach(t => {
+    const k = +t.dataset.n, o = g.owner[k];
+    let cls = 'tile', label = k + '';
+    if (o) { cls += ' taken ' + o.who + '-' + o.kind; label += (o.who === 'me' ? '、あなた' : '、相手') + (o.kind === 'chosen' ? 'が選んだ数' : 'がもらった数'); }
+    else if (hintOn() && !legal.includes(k)) { cls += ' off'; label += '、選べません'; }
+    if (k === S.sel) { cls += ' selected'; label += '、選択中'; }
+    if (hintSet.has(k)) cls += ' hintd';
+    if (k === S.flash) cls += ' flash';
+    t.className = cls; t.setAttribute('aria-label', label);
+    t.disabled = !!o || g.over;
+    const w = t.querySelector('.who');
+    if (o && !w) { const s = document.createElement('span'); s.className = 'who'; s.textContent = o.who === 'me' ? 'あ' : '相'; t.appendChild(s); }
+    if (!o && w) w.remove();
+  });
+
+  // 状況
+  const st = $('#status');
+  if (g.over) { st.textContent = 'おしまい。選べる数がなくなりました。'; }
+  else if (g.turn === 'ai') { st.innerHTML = '相手が考えています<span class="dots"></span>'; }
+  else if (S.locked && g.last && g.last.who === 'ai') { st.textContent = '相手は ' + g.last.n + ' を選びました。'; }
+  else { st.textContent = 'あなたの番です。数を選んでください。'; }
+
+  // 選択パネル
+  const p = $('#pick'); let html = '';
+  if (S.sel != null && !g.over) {
+    const k = S.sel;
+    html += '<p class="q">' + k + ' を選びますか?</p>';
+    if (hintOn()) {
+      const parts = T.divs[k].map(d => ((g.board >> d) & 1) ? '' + d : '<s>' + d + '</s>');
+      html += '<p class="divs">' + k + ' の約数: ' + parts.join('・') + '<br><small>(線が引かれた数は、もう盤面にありません)</small></p>';
+    }
+    html += '<div class="row"><button type="button" class="btn" data-act="ok">これにする</button><button type="button" class="btn ghost" data-act="cancel">やめる</button></div>';
+  } else {
+    html += '<p class="idle">' + (g.over ? '' : (g.turn === 'me' && !S.locked ? '数をタップして選びます。' : '')) + '</p>';
+  }
+  if (S.msg) html += '<p class="warn" role="status">' + S.msg + '</p>';
+  p.innerHTML = html;
+
+  // 最後の手・履歴
+  $('#last').innerHTML = g.last ? '直前の手 ─ ' + moveLine(g.last) : '';
+  const h = $('#hist'); h.innerHTML = histHtml(g);
+  const box = h.parentElement; box.scrollTop = box.scrollHeight;
+}
+
+/* ---- 1戦目のあと・結果 ---- */
+function overlay(html) { $('#dialog').innerHTML = html; $('#overlay').hidden = false; const f = $('#dialog button'); if (f) f.focus(); }
+function hideOverlay() { $('#overlay').hidden = true; }
+function leftoverText(g) { return g.leftover.length ? '残った数(' + g.leftover.join('・') + ')は、だれの点にもなりません。' : '残った数はありません。'; }
+function endGame() {
+  if (S.gi === 0) {
+    const g = S.g, next = S.firsts[1] === 'me' ? '先手' : '後手';
+    overlay('<h2 id="dlgTitle">1戦目 おしまい</h2>' +
+      '<div class="big-scores"><span class="me">あなた ' + g.scores.me + '点</span><span class="ai">相手 ' + g.scores.ai + '点</span></div>' +
+      '<p>' + leftoverText(g) + '</p><p>2戦目は、あなたが' + next + 'です。2戦の合計点で勝ち負けを決めます。</p>' +
+      '<div class="row"><button type="button" class="btn" id="nextBtn">2戦目へ</button></div>');
+    $('#nextBtn').addEventListener('click', () => { hideOverlay(); S.gi = 1; startGame(); });
+  } else showResult();
+}
+function showResult() {
+  hideOverlay();
+  const [a, b] = S.games, me = a.scores.me + b.scores.me, ai = a.scores.ai + b.scores.ai, d = me - ai;
+  const o = $('#outcome');
+  o.textContent = d > 0 ? 'あなたの勝ち!' : d < 0 ? '相手の勝ち' : '引き分け';
+  o.className = 'outcome ' + (d > 0 ? 'win' : d < 0 ? 'lose' : '');
+  $('#sumLine').textContent = '合計 あなた ' + me + '点 ─ 相手 ' + ai + '点(差 ' + (d > 0 ? '+' : '') + d + ')';
+  const row = (i, g) => '<tr><td>' + (i + 1) + '戦目(あなたは' + (g.first === 'me' ? '先手' : '後手') + ')</td><td class="me">' + g.scores.me + '</td><td class="ai">' + g.scores.ai + '</td><td>' + (g.leftover.length ? g.leftover.length + '個' : 'なし') + '</td></tr>';
+  $('#gamesTable').innerHTML = '<tr><th></th><th>あなた</th><th>相手</th><th>残った数</th></tr>' + row(0, a) + row(1, b) +
+    '<tr><td><b>合計</b></td><td class="me">' + me + '</td><td class="ai">' + ai + '</td><td></td></tr>';
+  S.tab = 0; renderTabs(); showScreen('result');
+}
+function renderTabs() {
+  $$('#tabs button').forEach(b => b.setAttribute('aria-selected', String(+b.dataset.g === S.tab)));
+  const g = S.games[S.tab];
+  $('#resultHist').innerHTML = histHtml(g) + '<p class="note">' + leftoverText(g) + '</p>';
+}
+$('#tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { S.tab = +b.dataset.g; renderTabs(); } });
+$('#againBtn').addEventListener('click', () => { showScreen('start'); startMatch(); });
+$('#changeBtn').addEventListener('click', () => { resetTimers(); showScreen('start'); renderStart(); });
+
+/* ---- ルール ---- */
+$('#rulesBtn').addEventListener('click', () => {
+  overlay('<h2 id="dlgTitle">ルールと勝ち方</h2>' + $('#rulesBody').innerHTML +
+    '<div class="row"><button type="button" class="btn" id="rClose">とじる</button></div>');
+  $('#rClose').addEventListener('click', hideOverlay);
+});
+
+/* ---- やめる ---- */
+$('#quitBtn').addEventListener('click', () => {
+  overlay('<h2 id="dlgTitle">ここでやめますか?</h2><p>今の2戦は、とちゅうで終わります。</p>' +
+    '<div class="row"><button type="button" class="btn" id="qYes">やめる</button><button type="button" class="btn ghost" id="qNo">つづける</button></div>');
+  $('#qNo').addEventListener('click', hideOverlay);
+  $('#qYes').addEventListener('click', () => { hideOverlay(); resetTimers(); showScreen('start'); renderStart(); });
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#overlay').hidden && $('#rClose, #qNo')) hideOverlay(); });
+
+renderStart();
+
+</script>
+</body>
+</html>
