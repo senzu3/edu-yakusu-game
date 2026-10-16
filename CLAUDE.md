@@ -88,3 +88,4 @@
 - 「今は選べない数」の凡例を追加
 - 強さ「たつじん」(でたらめ3%)を追加
 - GitHubに公開(リポジトリ senzu3/edu-yakusu-game、GitHub Pages:https://senzu3.github.io/edu-yakusu-game/ )。README.md を追加
+- MITライセンスを追加(LICENSE、README.md にライセンスの節)
